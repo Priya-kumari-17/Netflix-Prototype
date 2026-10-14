@@ -1,0 +1,669 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decide Faster Prototype</title>
+<!--
+  DECIDE FASTER — interactive prototype, v2
+  ------------------------------------------------------------------
+  Scope source: the PM notes in v1 (Mood Prompt, Time Filter, short list of 6
+  with "why" lines, "Not for me" + "Already seen", one discovery pick,
+  always skippable, success = time to play < 5 min).
+  Visual source: the Netflix home page screenshot (India, Wed evening).
+
+  Assumptions where the scope was silent (product decisions, not facts):
+  1. "Skip" now lands on the regular home page instead of a generic picks
+     list. Skipping should mean "leave me alone", and it lets the demo
+     compare time to play via home rows vs. via Decide Faster.
+  2. The home page carries a small "Help me pick" entry point so a user
+     who skipped can come back to the prompt without restarting.
+  3. Titles, runtimes and mood tags are fictional placeholders. Real
+     Netflix titles are not used because their mood tags and runtimes
+     here would be invented.
+  4. The clock is simulated (1 real second = 10 seconds) so the demo shows
+     realistic minutes. Baseline of 10 to 20 min is an assumption carried
+     over from v1, not a measured figure.
+  5. Brand red (#E50914) fails AA as small text on the dark background
+     (3.84:1), so it is used for fills, badges and large type only.
+     Small red text uses --red-text (#F5404A, 5.01:1).
+-->
+<style>
+  :root{
+    /* Palette taken from the home page screenshot */
+    --red:#E50914;          /* brand red: fills, badges, progress */
+    --red-dark:#B20710;     /* hover / red text on white (7.17:1) */
+    --red-text:#F5404A;     /* small red text on dark (5.01:1) */
+    --bg:#141414;           /* page background */
+    --nav:#000000;          /* top navigation bar */
+    --surface:#1F1F1F;      /* tiles, cards */
+    --surface-2:#2F2F2F;    /* active nav pill, chips */
+    --line:#3A3A3A;
+    --text:#FFFFFF;
+    --text-2:#B3B3B3;       /* 8.79:1 on bg */
+    --muted:#A3A3A3;        /* 6.53:1 on surface (was #808080, 4.17:1, failed) */
+    --rank:#595959;         /* Top 10 outline numerals (decorative) */
+    --ok:#46D369;           /* 8.46:1 on surface */
+    --note-bg:#FFF3B0; --note-ink:#3B3000;
+    --radius:8px;
+    --font:"Netflix Sans","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+  button,input{font:inherit;color:inherit}
+  button{cursor:pointer}
+  a{color:inherit}
+  :focus-visible{outline:3px solid #fff;outline-offset:3px;border-radius:4px}
+  [hidden]{display:none!important}
+  .sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .skip-link{position:absolute;left:16px;top:-60px;z-index:100;background:#fff;color:#000;padding:10px 16px;border-radius:4px;font-weight:700}
+  .skip-link:focus{top:12px}
+
+  /* ---------- PM annotation layer (portfolio walkthrough) ---------- */
+  .note{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    background:var(--note-bg);color:var(--note-ink);border-radius:4px;padding:3px 8px;line-height:1.35}
+  .note::before{content:"PM";background:var(--note-ink);color:var(--note-bg);border-radius:3px;padding:0 4px;font-size:10px}
+  body.hide-notes .note{display:none}
+  .notes-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .notes-row.center{justify-content:center}
+
+  /* ---------- Demo bar ---------- */
+  .demo-bar{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;
+    background:#0A0A0A;border-bottom:1px solid var(--line);padding:6px 60px;font-size:13px;color:var(--text-2)}
+  .demo-bar .grp{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .demo-bar strong{color:#fff}
+  .steps{display:flex;gap:6px;align-items:center}
+  .steps span{width:26px;height:4px;border-radius:2px;background:#444}
+  .steps span.on{background:var(--red)}
+  .pill{min-height:44px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:0 16px;font-size:13px}
+  .pill[aria-pressed="true"]{background:#fff;color:#000;border-color:#fff}
+
+  /* ---------- Top navigation (matches home page) ---------- */
+  header.nav{background:var(--nav);display:flex;align-items:center;gap:28px;padding:14px 60px;min-height:84px}
+  .logo{color:var(--red);font-weight:900;font-size:34px;letter-spacing:-.01em;text-decoration:none;line-height:1;min-height:44px;display:inline-flex;align-items:center}
+  .links{display:flex;gap:4px;list-style:none;margin:0;padding:0;align-items:center}
+  .links a{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;color:#E5E5E5;text-decoration:none;font-size:17px;white-space:nowrap}
+  .links a:hover{color:#fff}
+  .links a[aria-current="page"]{background:var(--surface-2);color:#fff;font-weight:700}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .icon-btn{position:relative;width:44px;height:44px;display:grid;place-items:center;background:transparent;border:0;border-radius:50%}
+  .icon-btn svg{width:26px;height:26px}
+  .icon-btn .count{position:absolute;top:2px;right:2px;min-width:20px;height:20px;border-radius:10px;background:var(--red);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;padding:0 5px}
+  .profile-link{display:flex;align-items:center;gap:10px;min-height:44px;color:#fff;text-decoration:none;font-size:16px;padding:0 6px}
+  .kids-sq{width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,#F4C542,#E86FA8 50%,#4FA3D9);display:grid;place-items:center;font-size:11px;font-weight:800;color:#141414}
+  .avatar{width:44px;height:44px;border-radius:6px;background:#2E6FD8;display:grid;place-items:center;font-weight:800;font-size:18px;border:0}
+
+  main{padding:0 60px 72px}
+  .screen{display:none}
+  .screen.on{display:block;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h1:focus,h2:focus{outline:none}
+  h1:focus-visible,h2:focus-visible{outline:3px solid #fff}
+
+  /* ---------- Buttons ---------- */
+  .btn{min-height:44px;border:0;border-radius:6px;padding:0 26px;font-weight:700;font-size:16px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+  .btn.primary{background:var(--red);color:#fff}                 /* 4.79:1 */
+  .btn.primary:hover{background:var(--red-dark)}
+  .btn.primary:disabled{background:#4A1A1D;color:#C9C9C9;cursor:not-allowed}
+  .btn.white{background:#fff;color:#000}
+  .btn.white:hover{background:#D9D9D9}
+  .btn.ghost{background:transparent;color:var(--text-2);text-decoration:underline;text-underline-offset:3px}
+  .btn.ghost:hover{color:#fff}
+  .btn.grey{background:#6D6D6DB3;color:#fff}
+
+  /* ---------- Row headings (home page style) ---------- */
+  .row-h{font-size:clamp(20px,2.2vw,28px);font-weight:700;margin:36px 0 14px;letter-spacing:-.005em}
+
+  /* ---------- Shared title tile ---------- */
+  .art{position:relative;aspect-ratio:16/9;border-radius:var(--radius);overflow:hidden;display:flex;align-items:center;justify-content:center;padding:14px;text-align:center}
+  .art .wm{font-weight:900;font-size:clamp(20px,2.2vw,30px);line-height:1;letter-spacing:.01em;text-shadow:0 2px 10px #000a;text-transform:uppercase}
+  .art .wm.serif{font-family:Georgia,"Times New Roman",serif;font-weight:700;text-transform:none;letter-spacing:.03em}
+  .art .wm.cond{font-family:Impact,"Arial Narrow",sans-serif;font-weight:400;letter-spacing:.02em}
+  .art .wm.spaced{letter-spacing:.18em;font-weight:700;font-size:clamp(16px,1.7vw,22px)}
+  .badge-top{position:absolute;top:0;left:10px;background:var(--red);color:#fff;border-radius:0 0 4px 4px;padding:2px 5px 3px;font-size:9px;font-weight:800;line-height:1;text-align:center}
+  .badge-top b{display:block;font-size:15px;line-height:1}
+  .badge-new{position:absolute;bottom:0;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;font-size:14px;font-weight:700;border-radius:4px 4px 0 0;padding:3px 12px;white-space:nowrap}
+  .badge-disc{position:absolute;top:10px;right:10px;background:#fff;color:#000;font-size:12px;font-weight:800;border-radius:4px;padding:2px 8px}
+
+  /* ---------- HOME screen ---------- */
+  .home-hero{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-top:28px;padding:20px 24px;border-radius:var(--radius);
+    background:linear-gradient(100deg,#2A0B0D 0%,#1F1F1F 55%);border:1px solid #3A1A1C}
+  .home-hero p{margin:0;color:var(--text-2)}
+  .home-hero strong{display:block;color:#fff;font-size:20px;margin-bottom:2px}
+  .rail{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 4px 10px;margin:0 -4px;scrollbar-width:thin;list-style:none}
+  .rail > li{flex:0 0 calc((100% - 4*14px)/5.15);scroll-snap-align:start}
+  .home-tile{display:block;width:100%;padding:0;background:none;border:0;border-radius:var(--radius);text-align:left;transition:transform .15s}
+  .home-tile:hover{transform:scale(1.03)}
+  .home-tile .art{width:100%}
+  /* Top 10 row: outlined numeral + portrait poster, like the home page */
+  .rail.top10 > li{flex-basis:calc((100% - 4*14px)/5)}
+  .rank-tile{display:flex;align-items:stretch;width:100%;padding:0;background:none;border:0;text-align:left}
+  .rank-tile .num{flex:0 0 50%;display:flex;align-items:flex-end;justify-content:flex-end;font-weight:900;font-size:clamp(90px,10vw,170px);line-height:.8;
+    color:var(--bg);-webkit-text-stroke:4px var(--rank);letter-spacing:-.08em;margin-right:-6%}
+  .rank-tile .art{flex:1;aspect-ratio:2/3;border-radius:var(--radius);align-items:flex-end;padding:10px}
+  .rank-tile .art .wm{font-size:clamp(13px,1.2vw,17px)}
+
+  /* ---------- PROMPT screen ---------- */
+  .prompt{max-width:780px;margin:5vh auto 0;text-align:center}
+  .prompt .hi{color:var(--text-2);margin:0 0 6px}
+  .prompt h1{font-size:clamp(28px,4.6vw,46px);margin:0 0 8px;line-height:1.12}
+  .prompt .sub{color:var(--text-2);margin:0 0 26px}
+  fieldset{border:0;margin:0;padding:0;min-width:0}
+  .moods{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .opt{position:relative;display:block}
+  .opt input{position:absolute;opacity:0;width:1px;height:1px}
+  .mood-card{display:block;height:100%;background:var(--surface);border:2px solid transparent;border-radius:10px;padding:16px 14px;text-align:left;cursor:pointer;transition:.15s;min-height:44px}
+  .mood-card:hover{background:var(--surface-2)}
+  .opt input:checked + .mood-card{border-color:var(--red);background:#2A1213}
+  .opt input:focus-visible + .mood-card,.opt input:focus-visible + .chip{outline:3px solid #fff;outline-offset:3px}
+  .mood-card .em{font-size:26px;display:block;margin-bottom:4px}
+  .mood-card b{display:block;font-size:17px}
+  .mood-card .d{color:var(--text-2);font-size:14px}
+  .time-q{margin:28px 0 12px;font-size:18px;font-weight:700}
+  .chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;min-height:44px;background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:0 20px;font-weight:600;cursor:pointer}
+  .opt input:checked + .chip{border-color:#fff;background:#fff;color:#000}
+  .actions{display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap;align-items:center}
+  .hint{color:var(--text-2);font-size:14px;margin:10px 0 0;min-height:21px}
+
+  /* ---------- PICKS screen ---------- */
+  .context{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:28px 0 8px}
+  .context h1{font-size:clamp(24px,3.2vw,34px);margin:0 10px 0 0}
+  .ctx-chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;background:var(--surface-2);border:0;border-radius:999px;padding:0 16px;font-size:15px}
+  .ctx-chip .chg{color:var(--text-2);font-size:13px;text-decoration:underline;text-underline-offset:2px}
+  .ctx-chip:hover .chg{color:#fff}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:16px;list-style:none;padding:0}
+  .tile{position:relative;background:var(--surface);border-radius:var(--radius);display:flex;flex-direction:column;height:100%}
+  .tile .art{border-radius:var(--radius) var(--radius) 0 0}
+  .meta{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
+  .meta h3{margin:0;font-size:17px}
+  .why{font-size:14px;color:var(--ok);font-weight:600;margin:0}
+  .desc{font-size:14px;color:var(--text-2);margin:0}
+  .row-actions{display:flex;gap:8px;margin-top:auto;align-items:center;flex-wrap:wrap}
+  .play{min-height:44px;background:#fff;color:#000;border:0;border-radius:4px;padding:0 18px;font-weight:700;display:inline-flex;gap:8px;align-items:center}
+  .play:hover{background:#D9D9D9}
+  .nfm{min-height:44px;background:transparent;border:1px solid #6D6D6D;border-radius:4px;padding:0 14px;font-size:14px;color:var(--text-2)}
+  .nfm:hover,.nfm[aria-expanded="true"]{border-color:#fff;color:#fff}
+  .menu{position:absolute;right:12px;bottom:66px;background:#000;border:1px solid var(--line);border-radius:8px;padding:6px;z-index:5;min-width:230px;box-shadow:0 10px 30px #000c}
+  .menu[hidden]{display:none}
+  .menu button{display:block;width:100%;min-height:44px;text-align:left;background:transparent;border:0;padding:8px 12px;border-radius:5px;font-size:15px}
+  .menu button:hover,.menu button:focus-visible{background:var(--surface-2)}
+  .menu small{display:block;color:var(--muted);font-size:13px}
+  .empty{grid-column:1/-1;color:var(--text-2);background:var(--surface);border-radius:var(--radius);padding:24px;text-align:center}
+  .more{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:20px}
+  .more p{margin:0;color:var(--text-2)}
+
+  /* ---------- PLAYING screen ---------- */
+  .player{max-width:920px;margin:4vh auto 0}
+  .video{aspect-ratio:16/9;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;text-align:center;padding:20px}
+  .video .label{font-size:13px;letter-spacing:.14em;opacity:.9}
+  .video h1{margin:0;font-size:clamp(26px,4vw,42px);text-shadow:0 2px 12px #000a}
+  .bar{height:4px;background:#ffffff33;border-radius:2px;margin-top:14px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--red);transition:width 1.2s linear}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px;list-style:none;padding:0}
+  .metric{background:var(--surface);border-radius:var(--radius);padding:14px 16px}
+  .metric b{display:block;font-size:28px}
+  .metric span{color:var(--text-2);font-size:14px}
+  .metric.good b{color:var(--ok)}
+  .metric.bad b{color:var(--red-text)}
+  .path{display:inline-block;margin-top:14px;font-size:14px;color:var(--text-2)}
+
+  /* ---------- Toast ---------- */
+  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,calc(100% + 40px));visibility:hidden;width:max-content;max-width:92vw;background:#fff;color:#000;border-radius:8px;
+    padding:6px 8px 6px 16px;display:flex;gap:10px;align-items:center;font-size:15px;font-weight:600;box-shadow:0 8px 30px #000a;transition:transform .25s,visibility .25s;z-index:60}
+  .toast.show{transform:translate(-50%,0);visibility:visible}
+  .toast button{min-height:44px;background:transparent;border:0;color:var(--red-dark);font-weight:800;padding:0 12px}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:1180px){
+    .links a{padding:0 12px;font-size:15px}
+    .links li.wide{display:none}
+    header.nav,main,.demo-bar{padding-left:4%;padding-right:4%}
+  }
+  @media (max-width:900px){
+    header.nav{flex-wrap:wrap;gap:10px 16px}
+    .main-nav{order:3;width:100%;min-width:0}
+    .links{overflow-x:auto;scrollbar-width:none}
+    .links li.wide{display:list-item}
+    .profile-link .lbl{display:none}
+    .grid{grid-template-columns:repeat(2,1fr)}
+    .rail > li{flex-basis:42%}
+    .rail.top10 > li{flex-basis:46%}
+  }
+  @media (max-width:600px){
+    header.nav{padding:10px 16px}
+    .logo{font-size:28px}
+    main{padding:0 16px 64px}
+    .demo-bar{padding:6px 16px}
+    .moods{grid-template-columns:repeat(2,1fr)}
+    .grid{grid-template-columns:1fr}
+    .metrics{grid-template-columns:1fr}
+    .rail > li{flex-basis:72%}
+    .rail.top10 > li{flex-basis:62%}
+    .prompt{margin-top:24px}
+    .home-hero{padding:16px}
+    .home-hero .btn{width:100%}
+    .actions .btn{width:100%}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- Demo controls: not part of the product UI -->
+<div class="demo-bar" role="region" aria-label="Prototype controls">
+  <div class="grp">
+    <strong>Decide Faster prototype</strong>
+    <div class="steps" role="img" aria-label="Flow progress" id="steps"><span class="on"></span><span></span><span></span></div>
+    <span>Scenario: Wed, 9:30 PM</span>
+    <span id="timer">Time to play: 0:00</span>
+  </div>
+  <div class="grp">
+    <button class="pill" id="toggleNotes" aria-pressed="true">PM notes on</button>
+    <button class="pill" id="restart">Restart flow</button>
+  </div>
+</div>
+
+<header class="nav">
+  <a class="logo" href="#" id="logoHome" aria-label="Netflix home">NETFLIX</a>
+  <nav class="main-nav" aria-label="Main">
+    <ul class="links" id="navLinks">
+      <li><a href="#" data-nav="home" aria-current="page">Home</a></li>
+      <li><a href="#" data-nav="home">Shows</a></li>
+      <li><a href="#" data-nav="home">Movies</a></li>
+      <li class="wide"><a href="#" data-nav="home">Games</a></li>
+      <li><a href="#" data-nav="home">New &amp; Popular</a></li>
+      <li><a href="#" data-nav="home">My Netflix</a></li>
+      <li class="wide"><a href="#" data-nav="home">Browse by Languages</a></li>
+    </ul>
+  </nav>
+  <div class="nav-right">
+    <button class="icon-btn" aria-label="Search" id="searchBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="M16 16l5.5 5.5" stroke-linecap="round"/></svg>
+    </button>
+    <button class="icon-btn" aria-label="Notifications, 4 new" id="bellBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 17V11a6 6 0 0112 0v6l1.5 2h-15z" stroke-linejoin="round"/><path d="M10 21h4" stroke-linecap="round"/></svg>
+      <span class="count" aria-hidden="true">4</span>
+    </button>
+    <a href="#" class="profile-link" id="kidsLink"><span class="kids-sq" aria-hidden="true">kids</span><span class="lbl">Children</span><span class="sr">Switch to Children profile</span></a>
+    <button class="avatar" aria-label="Profile: Maya" id="avatarBtn">M</button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- STEP 1: Mood Prompt + Time Filter -->
+  <section class="screen on" id="prompt" aria-labelledby="promptTitle">
+    <form class="prompt" id="promptForm" novalidate>
+      <p class="hi">Hi Maya 👋</p>
+      <h1 id="promptTitle" tabindex="-1">What are you in the mood for tonight?</h1>
+      <p class="sub">Pick one and we'll line up a few titles that fit. Totally optional.</p>
+
+      <fieldset>
+        <legend class="sr">Choose a mood</legend>
+        <div class="moods" id="moods"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="time-q">How much time do you have?</legend>
+        <div class="chips" id="times"></div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="btn primary" id="show" disabled aria-describedby="hint">Show me picks</button>
+        <button type="button" class="btn ghost" id="skip">Skip, take me home</button>
+      </div>
+      <p class="hint" id="hint" aria-live="polite">Pick a mood to continue.</p>    </form>
+  </section>
+
+  <!-- STEP 2: Picked for tonight -->
+  <section class="screen" id="picks" aria-labelledby="picksTitle">
+    <div class="context">
+      <h1 id="picksTitle" tabindex="-1">Picked for tonight</h1>
+      <button class="ctx-chip" id="moodChip"></button>
+      <button class="ctx-chip" id="timeChip"></button>
+    </div>
+    <ul class="grid" id="grid" aria-label="Six picks for tonight"></ul>
+    <div class="notes-row">
+      <span class="note">"Not for me" on the tile, with a separate "Already seen" signal</span>
+      <span class="note">One discovery pick per set protects content diversity</span>
+    </div>
+    <div class="more">
+      <p>Not feeling these? Everything else is still on your home page.</p>
+      <button class="btn grey" id="toHome">Browse the full home page →</button>
+    </div>
+  </section>
+
+  <!-- STEP 3: Playing + outcome -->
+  <section class="screen" id="play" aria-labelledby="nowTitle">
+    <div class="player">
+      <div class="video" id="video">
+        <span class="label">NOW PLAYING</span>
+        <h1 id="nowTitle" tabindex="-1"></h1>
+        <span id="nowMeta"></span>
+      </div>
+      <div class="bar" aria-hidden="true"><i id="prog"></i></div>
+      <span class="path" id="pathLabel"></span>
+      <ul class="metrics">
+        <li class="metric" id="ttpCard"><b id="ttp">0:00</b><span>Your time to play (target under 5 min; assumed baseline 10 to 20 min)</span></li>
+        <li class="metric"><b id="fitsTime">✓</b><span id="fitsLabel">Fits in your time window, so you can finish before bed</span></li>
+        <li class="metric"><b id="sig">0</b><span>"Not for me" signals sent this session</span></li>
+      </ul>
+      <div class="notes-row"><span class="note">Success = time to play under 5 min and ≥ 70% watched</span></div>
+      <div class="actions" style="justify-content:flex-start">
+        <button class="btn white" id="back">← Back to picks</button>
+        <button class="btn grey" id="backHome">Back to home</button>
+        <button class="btn ghost" id="again">Try another mood</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOME: the existing home page, reached by Skip or "Browse the full home page" -->
+  <section class="screen" id="home" aria-labelledby="homeTitle">
+    <h1 class="sr" id="homeTitle" tabindex="-1">Home</h1>
+    <div class="home-hero">
+      <p><strong>Not sure what to watch?</strong>Tell us your mood and time, and we'll narrow it to six.</p>
+      <button class="btn primary" id="helpPick">✨ Help me pick</button>
+    </div>
+    <div class="notes-row"><span class="note">Re-entry point after skip: prompt never blocks the home page</span><span class="note">Playing from here shows the baseline path</span></div>
+    <div id="rows"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="undo">Undo</button></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Data (fictional placeholder catalogue) ---------- */
+  const MOODS = [
+    {id:"light",  em:"☀️", name:"Lighthearted", d:"Easy and warm"},
+    {id:"funny",  em:"😂", name:"Funny",        d:"Laughs, no thinking"},
+    {id:"thrill", em:"⚡", name:"Thrilling",    d:"Edge of your seat"},
+    {id:"feel",   em:"💛", name:"Feel-good",    d:"Leaves you smiling"},
+    {id:"grip",   em:"🕵️", name:"Gripping",     d:"Twisty and smart"},
+    {id:"any",    em:"🎲", name:"Surprise me",  d:"Something new"}
+  ];
+  const TIMES = [{v:30,l:"~30 min"},{v:45,l:"~45 min"},{v:90,l:"90 min"},{v:0,l:"No rush"}];
+  const G = (a,b)=>`linear-gradient(135deg,${a},${b})`;
+  // wm = wordmark style on the art: "", "serif", "cond", "spaced"
+  const TITLES = [
+    {t:"Sunday Bakers",       m:["light","feel"],  min:24, kind:"Episode", g:"Reality · Baking",  art:G("#F6A04D","#B5462E"), wm:"serif",  top:true,  d:"Amateur bakers, gentle judges, zero drama."},
+    {t:"Office Hours",        m:["funny","light"], min:22, kind:"Episode", g:"Sitcom",            art:G("#4FA3D9","#1D3F72"), wm:"",       d:"A chaotic startup and the intern who runs it."},
+    {t:"Stand-Up Shorts",     m:["funny"],         min:18, kind:"Special", g:"Comedy",            art:G("#E50914","#5A0409"), wm:"cond",   fresh:true, d:"Five comics, five tight sets."},
+    {t:"The Long Weekend",    m:["light","feel"],  min:94, kind:"Film",    g:"Rom-com",           art:G("#F2C14E","#C2571A"), wm:"serif",  d:"Two strangers share a delayed train and a road trip."},
+    {t:"Tiny Planet",         m:["feel","any"],    min:42, kind:"Episode", g:"Nature docuseries", art:G("#3FB57A","#11493A"), wm:"spaced", d:"Small creatures, astonishing stories."},
+    {t:"Night Courier",       m:["thrill"],        min:44, kind:"Episode", g:"Crime thriller",    art:G("#3B3B58","#0E0E1A"), wm:"cond",   top:true, fresh:true, d:"One delivery. One wrong address. One night."},
+    {t:"Cold Case Kitchen",   m:["grip","light"],  min:38, kind:"Episode", g:"Cozy mystery",      art:G("#8C5A3C","#2E1A10"), wm:"serif",  d:"A chef solves small-town mysteries between services."},
+    {t:"Signal Lost",         m:["thrill","grip"], min:108,kind:"Film",    g:"Sci-fi thriller",   art:G("#2A6F97","#061A2B"), wm:"spaced", top:true, d:"A space station goes silent. Then it calls back."},
+    {t:"Dance Like Nobody",   m:["feel","funny"],  min:28, kind:"Episode", g:"Comedy-drama",      art:G("#E86FA8","#6B1F4A"), wm:"",       fresh:true, d:"A retired teacher joins a teen dance crew."},
+    {t:"The Quiet Detective", m:["grip"],          min:52, kind:"Episode", g:"Nordic noir",       art:G("#5C6B73","#1B2226"), wm:"spaced", top:true, d:"A soft-spoken detective, a frozen harbour town."},
+    {t:"Pet Rescue Live",     m:["feel","light"],  min:21, kind:"Episode", g:"Docuseries",        art:G("#F7B267","#9C4A1A"), wm:"",       d:"Rescues, reunions, and very good dogs."},
+    {t:"Prank Academy",       m:["funny","any"],   min:26, kind:"Episode", g:"Hidden camera",     art:G("#9B5DE5","#3A1670"), wm:"cond",   d:"Wholesome pranks on unsuspecting strangers."},
+    {t:"Heist on Ice",        m:["thrill","any"],  min:41, kind:"Episode", g:"Heist",             art:G("#7AD0E8","#1F4E5F"), wm:"cond",   top:true, d:"A crew plans to rob a figure-skating final."},
+    {t:"Grandma's Garden",    m:["light","any"],   min:19, kind:"Episode", g:"Lifestyle",         art:G("#86C06C","#2F5D22"), wm:"serif",  fresh:true, d:"Growing food, telling stories, one plot at a time."},
+    {t:"Mind the Gap",        m:["grip","thrill"], min:35, kind:"Episode", g:"Psych thriller",    art:G("#C0392B","#2C0B07"), wm:"cond",   d:"Every passenger on the last train has a secret."},
+    {t:"Deadline Desk",       m:["thrill","grip"], min:29, kind:"Episode", g:"Newsroom thriller", art:G("#D35400","#3D1600"), wm:"",       fresh:true, d:"A night editor has one hour to verify a leak."},
+    {t:"Locked Room",         m:["grip","any"],    min:33, kind:"Episode", g:"Whodunit",          art:G("#6C5B7B","#1E1626"), wm:"serif",  d:"Six guests, one sealed study, no way out."},
+    {t:"Monsoon Run",         m:["thrill"],        min:24, kind:"Episode", g:"Action",            art:G("#16A085","#08332B"), wm:"cond",   d:"A courier races a flood across the city."},
+    {t:"Lunch Break Laughs",  m:["funny","light"], min:15, kind:"Special", g:"Sketch comedy",     art:G("#F39C12","#7A3E00"), wm:"",       d:"Quick sketches you can finish over lunch."},
+    {t:"First Date Diaries",  m:["feel","light","funny"], min:30, kind:"Episode", g:"Romantic comedy", art:G("#FF7E79","#7A1F2B"), wm:"serif", d:"Real first dates, warmly awkward."},
+    {t:"Edge of Midnight",    m:["thrill","grip"], min:118,kind:"Film",    g:"Mystery thriller",  art:G("#34495E","#0B1218"), wm:"spaced", d:"A blackout, a missing witness, a city holding its breath."},
+    {t:"The Big Laugh",       m:["funny","feel"],  min:96, kind:"Film",    g:"Comedy",            art:G("#E67E22","#5A2A04"), wm:"cond",   d:"A wedding band gets booked for the wrong wedding."}
+  ];
+  const byTitle = t => TITLES.find(x=>x.t===t);
+  // Home rows: same titles, the way the regular home page would arrange them
+  const ROWS = [
+    {h:"Your Next Watch", items:["Night Courier","Sunday Bakers","Signal Lost","Office Hours","Stand-Up Shorts","Tiny Planet"]},
+    {h:"Top 10 Shows in India Today", top10:true, items:["Night Courier","Sunday Bakers","The Quiet Detective","Heist on Ice","Signal Lost","Mind the Gap","Office Hours"]},
+    {h:"Recently Added", items:["Stand-Up Shorts","Dance Like Nobody","Grandma's Garden","Night Courier","Cold Case Kitchen","Prank Academy"]},
+    {h:"Because You Watched Sunday Bakers", items:["Pet Rescue Live","Grandma's Garden","The Long Weekend","Dance Like Nobody","Tiny Planet","Cold Case Kitchen"]}
+  ];
+
+  /* ---------- State ---------- */
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fresh = () => ({mood:null, time:0, hidden:new Set(), signals:0, start:Date.now(), stopped:null, last:null, from:null, current:"prompt"});
+  let state = fresh();
+
+  /* Simulated clock: 1 real second = 10 seconds, so a short demo shows realistic minutes */
+  const SPEED = 10;
+  const fmt = ms => { const s=Math.round(ms/1000*SPEED); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); };
+  setInterval(()=>{ if(!state.stopped) $("timer").textContent = "Time to play: "+fmt(Date.now()-state.start); }, 250);
+
+  /* ---------- Navigation between screens ---------- */
+  const STEP = {prompt:1, home:1, picks:2, play:3};
+  const HEAD = {prompt:"promptTitle", picks:"picksTitle", play:"nowTitle", home:"homeTitle"};
+  function go(name){
+    state.current = name;
+    document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===name));
+    [...$("steps").children].forEach((s,i)=>s.classList.toggle("on", i < STEP[name]));
+    $("steps").setAttribute("aria-label", `Flow progress: step ${STEP[name]} of 3`);
+    closeMenus(false);
+    window.scrollTo({top:0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+    // Move focus to the new screen's heading so keyboard and screen-reader users land in context
+    requestAnimationFrame(()=>$(HEAD[name]).focus({preventScroll:true}));
+  }
+
+  /* ---------- Step 1: mood + time controls (native radios = arrow-key support for free) ---------- */
+  $("moods").innerHTML = MOODS.map(m=>`
+    <label class="opt"><input type="radio" name="mood" value="${m.id}">
+      <span class="mood-card"><span class="em" aria-hidden="true">${m.em}</span><b>${m.name}</b><span class="d">${m.d}</span></span>
+    </label>`).join("");
+  $("times").innerHTML = TIMES.map(t=>`
+    <label class="opt"><input type="radio" name="time" value="${t.v}"><span class="chip">${t.l}</span></label>`).join("");
+
+  $("promptForm").addEventListener("change", e=>{
+    if(e.target.name==="mood") state.mood = e.target.value;
+    if(e.target.name==="time") state.time = +e.target.value;
+    sync();
+  });
+  function sync(){
+    $("show").disabled = !state.mood;
+    $("hint").textContent = state.mood ? "" : "Pick a mood to continue.";
+  }
+  function setRadios(){
+    document.querySelectorAll('input[name="mood"]').forEach(i=>i.checked = i.value===state.mood);
+    document.querySelectorAll('input[name="time"]').forEach(i=>i.checked = state.time && +i.value===state.time);
+  }
+
+  $("promptForm").addEventListener("submit", e=>{ e.preventDefault(); if(!state.mood) return; renderPicks(); go("picks"); });
+  $("skip").onclick = ()=>go("home");
+
+  /* ---------- Step 2: picks ---------- */
+  function picks(){
+    const maxMin = state.time || Infinity;
+    const fits = TITLES.filter(x=>!state.hidden.has(x.t) && x.min<=maxMin);
+    const match = fits.filter(x=>x.m.includes(state.mood));
+    const list = match.slice(0,5).map(x=>({...x, disc:false}));
+    // Guardrail: one "outside your usual" slot to protect content diversity
+    const discovery = fits.find(x=>!x.m.includes(state.mood));
+    if(discovery) list.push({...discovery, disc:true});
+    return list.slice(0,6);
+  }
+
+  function artHTML(x, opts={}){
+    return `<div class="art" style="background:${x.art}" aria-hidden="true">
+      ${opts.badges!==false && x.top ? '<span class="badge-top">TOP<b>10</b></span>' : ''}
+      ${opts.disc ? '<span class="badge-disc">Discovery pick</span>' : ''}
+      <span class="wm ${x.wm}">${esc(x.t)}</span>
+      ${opts.badges!==false && x.fresh ? '<span class="badge-new">Recently added</span>' : ''}
+    </div>`;
+  }
+
+  function renderPicks(focusIndex){
+    const mood = MOODS.find(m=>m.id===state.mood);
+    const tLabel = state.time ? TIMES.find(t=>t.v===state.time).l : "Any length";
+    $("moodChip").innerHTML = `<span aria-hidden="true">${mood.em}</span> ${mood.name} <span class="chg">Change</span>`;
+    $("moodChip").setAttribute("aria-label", `Mood: ${mood.name}. Change mood`);
+    $("timeChip").innerHTML = `<span aria-hidden="true">⏱</span> ${tLabel} <span class="chg">Change</span>`;
+    $("timeChip").setAttribute("aria-label", `Time: ${tLabel}. Change time`);
+
+    const grid = $("grid");
+    const list = picks();
+    if(!list.length){
+      grid.innerHTML = `<li class="empty">Nothing left that fits your time window. <button class="btn white" id="widen" style="margin-left:8px">Show any length</button></li>`;
+      $("widen").onclick = ()=>{ state.time=0; setRadios(); renderPicks(0); };
+      if(focusIndex!=null) $("widen").focus();
+      return;
+    }
+    grid.innerHTML = list.map((x,i)=>{
+      const why = x.disc ? "Something different you might like"
+        : `${mood.name} · ${x.min} min${state.time ? " · fits your "+state.time+" min" : ""}`;
+      return `<li><article class="tile" aria-labelledby="t${i}">
+        ${artHTML(x,{disc:x.disc})}
+        <div class="meta">
+          <h3 id="t${i}">${esc(x.t)}</h3>
+          <p class="why">${why}</p>
+          <p class="desc">${x.kind} · ${x.g}. ${esc(x.d)}</p>
+          <div class="row-actions">
+            <button class="play" data-i="${i}" aria-label="Play ${esc(x.t)}"><span aria-hidden="true">▶</span> Play</button>
+            <button class="nfm" data-i="${i}" aria-haspopup="menu" aria-expanded="false" aria-controls="m${i}" aria-label="Not for me: ${esc(x.t)}"><span aria-hidden="true">👎</span> Not for me</button>
+          </div>
+        </div>
+        <div class="menu" id="m${i}" role="menu" aria-label="Feedback for ${esc(x.t)}" hidden>
+          <button role="menuitem" tabindex="-1" data-i="${i}" data-r="dislike"><span aria-hidden="true">👎</span> Not for me<small>Show me less like this</small></button>
+          <button role="menuitem" tabindex="-1" data-i="${i}" data-r="seen"><span aria-hidden="true">👁</span> Already seen<small>Hide it, keep my taste profile accurate</small></button>
+        </div>
+      </article></li>`;
+    }).join("") + (list.length < 6 && state.time
+      ? `<li class="empty">Only ${list.length} fit in ${state.time} min. <button class="btn white" id="widen" style="margin-left:8px">Include longer titles</button></li>` : "");
+    if($("widen")) $("widen").onclick = ()=>{ state.time=0; setRadios(); renderPicks(0); };
+    grid._list = list;
+    if(focusIndex!=null){
+      const plays = grid.querySelectorAll(".play");
+      (plays[Math.min(focusIndex, plays.length-1)] || $("picksTitle")).focus();
+    }
+  }
+
+  $("grid").addEventListener("click", e=>{
+    const b = e.target.closest("button"); if(!b) return;
+    const x = $("grid")._list && $("grid")._list[+b.dataset.i];
+    if(b.classList.contains("play")) play(x, "picks");
+    else if(b.classList.contains("nfm")){ e.stopPropagation(); toggleMenu(b); }
+    else if(b.dataset.r){ hide(x, b.dataset.r, +b.dataset.i); }
+  });
+
+  /* Menu: open/close, arrow keys, Escape returns focus to the trigger */
+  function toggleMenu(btn){
+    const menu = $(btn.getAttribute("aria-controls"));
+    const open = menu.hidden;
+    closeMenus(false);
+    if(open){ menu.hidden=false; btn.setAttribute("aria-expanded","true"); menu.querySelector("button").focus(); }
+  }
+  function closeMenus(returnFocus){
+    document.querySelectorAll(".menu:not([hidden])").forEach(m=>{
+      m.hidden = true;
+      const t = document.querySelector(`[aria-controls="${m.id}"]`);
+      if(t){ t.setAttribute("aria-expanded","false"); if(returnFocus) t.focus(); }
+    });
+  }
+  document.addEventListener("click", e=>{ if(!e.target.closest(".menu")) closeMenus(false); });
+  document.addEventListener("keydown", e=>{
+    const menu = e.target.closest && e.target.closest(".menu");
+    if(e.key==="Escape"){ if(menu) closeMenus(true); return; }
+    if(!menu) return;
+    const items = [...menu.querySelectorAll("[role=menuitem]")];
+    const i = items.indexOf(e.target);
+    if(e.key==="ArrowDown"){ e.preventDefault(); items[(i+1)%items.length].focus(); }
+    if(e.key==="ArrowUp"){ e.preventDefault(); items[(i-1+items.length)%items.length].focus(); }
+    if(e.key==="Home"){ e.preventDefault(); items[0].focus(); }
+    if(e.key==="End"){ e.preventDefault(); items[items.length-1].focus(); }
+    if(e.key==="Tab"){ closeMenus(false); }
+  });
+
+  $("moodChip").onclick = ()=>{ setRadios(); go("prompt"); };
+  $("timeChip").onclick = ()=>{ setRadios(); go("prompt"); };
+  $("toHome").onclick = ()=>go("home");
+
+  /* Feedback + undo toast */
+  let toastT;
+  function hide(x, reason, idx){
+    state.hidden.add(x.t); state.last = {t:x.t, reason, idx};
+    if(reason==="dislike") state.signals++;
+    closeMenus(false);
+    renderPicks(idx);   // focus moves to the tile that slid into this slot
+    $("toastMsg").textContent = reason==="dislike" ? `Got it. Fewer picks like "${x.t}".` : `Hidden. "${x.t}" won't count against your taste.`;
+    $("toast").classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(()=>$("toast").classList.remove("show"), 6000);
+  }
+  $("undo").onclick = ()=>{
+    if(!state.last) return;
+    const {t, reason, idx} = state.last;
+    state.hidden.delete(t); if(reason==="dislike") state.signals--;
+    state.last = null; $("toast").classList.remove("show");
+    if(state.current==="picks") renderPicks(idx);
+  };
+
+  /* ---------- Home rows ---------- */
+  function renderHome(){
+    $("rows").innerHTML = ROWS.map((r,ri)=>`
+      <h2 class="row-h" id="row${ri}">${esc(r.h)}</h2>
+      <ul class="rail ${r.top10?'top10':''}" aria-labelledby="row${ri}">
+        ${r.items.map((t,i)=>{ const x = byTitle(t);
+          return r.top10
+            ? `<li><button class="rank-tile" data-t="${esc(t)}" aria-label="Number ${i+1}: ${esc(t)}. Play"><span class="num" aria-hidden="true">${i+1}</span>${artHTML(x,{badges:false})}</button></li>`
+            : `<li><button class="home-tile" data-t="${esc(t)}" aria-label="${esc(t)}${x.fresh?', recently added':''}${x.top?', top 10':''}. Play">${artHTML(x)}</button></li>`;
+        }).join("")}
+      </ul>`).join("");
+  }
+  renderHome();
+  $("rows").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(b) play(byTitle(b.dataset.t), "home"); });
+  $("helpPick").onclick = ()=>{ setRadios(); go("prompt"); };
+  document.querySelectorAll("[data-nav]").forEach(a=>a.onclick = e=>{ e.preventDefault(); go("home"); });
+  $("logoHome").onclick = e=>{ e.preventDefault(); go("home"); };
+  ["searchBtn","bellBtn","avatarBtn"].forEach(id=>$(id).onclick = ()=>showNote("Outside the scope of this prototype."));
+  $("kidsLink").onclick = e=>{ e.preventDefault(); showNote("Profile switching is outside the scope of this prototype."); };
+  function showNote(msg){ $("toastMsg").textContent = msg; $("undo").hidden = true; $("toast").classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(()=>{ $("toast").classList.remove("show"); $("undo").hidden=false; }, 3000); }
+
+  /* ---------- Step 3: playing + outcome ---------- */
+  function play(x, from){
+    state.from = from;
+    if(!state.stopped) state.stopped = Date.now();
+    const elapsed = state.stopped - state.start;
+    $("timer").textContent = "Time to play: "+fmt(elapsed)+" ✓";
+    $("nowTitle").textContent = x.t;
+    $("nowMeta").textContent = `${x.kind} · ${x.g} · ${x.min} min`;
+    $("video").style.background = x.art;
+    $("ttp").textContent = fmt(elapsed);
+    const underTarget = elapsed*SPEED/1000 < 300;
+    $("ttpCard").className = "metric " + (underTarget ? "good" : "bad");
+    if(state.time){
+      const fits = x.min<=state.time;
+      $("fitsTime").textContent = fits ? "✓ Yes" : "No";
+      $("fitsLabel").textContent = fits ? `Fits your ${state.time} min, so you can finish before bed` : `Runs past your ${state.time} min window`;
+    } else {
+      $("fitsTime").textContent = "—";
+      $("fitsLabel").textContent = "No time window set";
+    }
+    $("sig").textContent = state.signals;
+    $("pathLabel").textContent = from==="picks" ? "Path: Decide Faster picks" : "Path: regular home rows (baseline)";
+    $("back").hidden = !state.mood;
+    $("prog").style.width = "0"; go("play"); setTimeout(()=>$("prog").style.width="12%", 60);
+  }
+  $("back").onclick = ()=>{ renderPicks(); go("picks"); };
+  $("backHome").onclick = ()=>go("home");
+  $("again").onclick = ()=>{ setRadios(); go("prompt"); };
+
+  /* ---------- Demo controls ---------- */
+  $("restart").onclick = ()=>{
+    state = fresh();
+    document.querySelectorAll('#promptForm input').forEach(i=>i.checked=false);
+    $("toast").classList.remove("show"); sync(); go("prompt");
+  };
+  $("toggleNotes").onclick = function(){
+    const off = document.body.classList.toggle("hide-notes");
+    this.setAttribute("aria-pressed", String(!off));
+    this.textContent = off ? "PM notes off" : "PM notes on";
+  };
+  sync();
+})();
+</script>
+</body>
+</html>
+
+</body></html>
