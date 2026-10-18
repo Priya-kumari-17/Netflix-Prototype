@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Decide Faster Prototype</title>
+<!-- Link preview text for LinkedIn and other sites -->
+<meta name="description" content="A concept prototype for helping viewers pick something to watch faster: choose a mood and time, get six picks.">
+<meta property="og:title" content="Decide Faster: a streaming recommendation concept">
+<meta property="og:description" content="Interactive concept prototype. Pick a mood and how much time you have, and get six picks that fit.">
+<meta property="og:type" content="website">
 <!--
   DECIDE FASTER — interactive prototype, v2
   ------------------------------------------------------------------
@@ -256,6 +261,8 @@
     .home-hero .btn{width:100%}
     .actions .btn{width:100%}
   }
+  .disclaimer{padding:16px 60px 28px;color:var(--text-2);font-size:13px;text-align:center;border-top:1px solid var(--line)}
+  @media (max-width:600px){ .disclaimer{padding:14px 16px 24px} }
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
@@ -365,6 +372,7 @@
   </section>
 
 </main>
+<footer class="disclaimer">Concept prototype by Priya Kumari for a product case study. Not affiliated with or endorsed by Netflix. All titles shown are fictional.</footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="undo">Undo</button></div>
 
